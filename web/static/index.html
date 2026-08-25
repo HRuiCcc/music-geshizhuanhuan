@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>music-unlock · 全平台加密音乐解锁</title>
+<style>
+  :root {
+    --bg: #07090f;
+    --panel: rgba(255,255,255,.045);
+    --panel-solid: #10141f;
+    --line: rgba(255,255,255,.09);
+    --text: #eef2fa;
+    --dim: #8a93a6;
+    --accent: #7c5cff;
+    --accent2: #2dd4ff;
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --err: #fb5a5a;
+    --netease: #ff6b6b;
+    --qq: #31c27c;
+    --kugou: #4d9fff;
+    --kuwo: #ffb020;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scrollbar-color: rgba(124,92,255,.4) transparent; }
+  body {
+    background: var(--bg); color: var(--text); min-height: 100vh;
+    font-family: -apple-system, "SF Pro Display", "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* ---- 背景光晕 + 网格 ---- */
+  .bg { position: fixed; inset: 0; z-index: -2; overflow: hidden;
+    background:
+      radial-gradient(1100px 520px at 12% -8%, rgba(124,92,255,.16), transparent 60%),
+      radial-gradient(900px 480px at 100% 8%, rgba(45,212,255,.10), transparent 60%),
+      radial-gradient(760px 560px at 50% 118%, rgba(255,107,107,.07), transparent 65%);
+  }
+  .bg::after { content:""; position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 30%, transparent 78%);
+  }
+  .orb { position: fixed; z-index: -1; border-radius: 50%; filter: blur(90px); opacity: .5;
+    animation: drift 18s ease-in-out infinite alternate; pointer-events: none; }
+  .orb.a { width: 380px; height: 380px; background: #7c5cff33; top: -120px; left: -80px; }
+  .orb.b { width: 300px; height: 300px; background: #2dd4ff22; top: 30%; right: -100px; animation-delay: -6s; }
+  .orb.c { width: 260px; height: 260px; background: #ff6b6b18; bottom: -90px; left: 30%; animation-delay: -12s; }
+  @keyframes drift { from { transform: translate(0,0) scale(1); } to { transform: translate(46px,30px) scale(1.12); } }
+
+  .wrap { max-width: 900px; margin: 0 auto; padding: 30px 20px 64px; }
+
+  /* ---- 顶栏 ---- */
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+  .logo { width: 44px; height: 44px; border-radius: 14px; flex: none; position: relative;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    box-shadow: 0 8px 28px rgba(124,92,255,.4), inset 0 1px 0 rgba(255,255,255,.35);
+    display: flex; align-items: center; justify-content: center; }
+  .logo svg { width: 24px; height: 24px; }
+  .brand h1 { font-size: 21px; font-weight: 800; letter-spacing: .3px;
+    background: linear-gradient(92deg, #f4f6ff 20%, #b9a6ff 55%, #7ce4ff 90%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .brand p { font-size: 12px; color: var(--dim); margin-top: 2px; }
+  #health { margin-left: auto; font-size: 12px; padding: 6px 14px; border-radius: 999px;
+    color: var(--dim); border: 1px solid var(--line); background: var(--panel);
+    display: flex; align-items: center; gap: 7px; backdrop-filter: blur(12px); }
+  #health::before { content:""; width: 7px; height: 7px; border-radius: 50%; background: var(--dim); }
+  #health.on { color: var(--ok); border-color: rgba(52,211,153,.4); }
+  #health.on::before { background: var(--ok); box-shadow: 0 0 10px var(--ok); animation: blink 2.4s infinite; }
+  @keyframes blink { 50% { opacity: .45; } }
+
+  /* ---- 拖放区 ---- */
+  .drop {
+    position: relative; margin: 22px 0 16px; padding: 46px 24px 40px;
+    border-radius: var(--radius); cursor: pointer; text-align: center;
+    background: linear-gradient(160deg, rgba(124,92,255,.10), rgba(45,212,255,.05) 60%, transparent);
+    border: 1.5px dashed rgba(255,255,255,.16);
+    transition: all .22s ease; backdrop-filter: blur(10px); overflow: hidden;
+  }
+  .drop:hover { border-color: rgba(124,92,255,.65); transform: translateY(-2px);
+    box-shadow: 0 18px 50px -18px rgba(124,92,255,.45); }
+  .drop.over { border-style: solid; border-color: var(--accent2); background:
+    linear-gradient(160deg, rgba(124,92,255,.22), rgba(45,212,255,.12));
+    box-shadow: 0 0 0 6px rgba(124,92,255,.14), 0 24px 60px -18px rgba(124,92,255,.55); }
+  .eq { display: flex; gap: 5px; align-items: flex-end; justify-content: center; height: 42px; margin-bottom: 14px; }
+  .eq i { width: 5px; border-radius: 3px; background: linear-gradient(to top, var(--accent), var(--accent2));
+    height: 14px; animation: bounce 1s ease-in-out infinite; }
+  .eq i:nth-child(1) { animation-delay: 0s; }   .eq i:nth-child(2) { animation-delay: .12s; }
+  .eq i:nth-child(3) { animation-delay: .24s; } .eq i:nth-child(4) { animation-delay: .36s; }
+  .eq i:nth-child(5) { animation-delay: .48s; } .eq i:nth-child(6) { animation-delay: .6s; }
+  .eq i:nth-child(7) { animation-delay: .72s; }
+  @keyframes bounce { 0%,100% { height: 12px; } 50% { height: 40px; } }
+  .drop .t1 { font-size: 19px; font-weight: 700; letter-spacing: .3px; }
+  .drop .t1 em { font-style: normal; background: linear-gradient(90deg, #b9a6ff, #7ce4ff);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .drop .t2 { font-size: 12.5px; color: var(--dim); margin-top: 8px; }
+  .fmts { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; margin-top: 18px; }
+  .fmts span { font-size: 11px; padding: 4px 11px; border-radius: 999px;
+    border: 1px solid var(--line); background: rgba(255,255,255,.03); color: var(--dim);
+    font-family: "SF Mono", ui-monospace, Menlo, monospace; letter-spacing: .2px; }
+
+  /* ---- 设置栏 ---- */
+  .settings { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center;
+    padding: 15px 20px; border-radius: 16px; margin-bottom: 18px;
+    background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(12px); }
+  .field { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--dim); }
+  select, input[type=text] {
+    background: rgba(255,255,255,.05); color: var(--text); border: 1px solid var(--line);
+    border-radius: 10px; padding: 7px 12px; font-size: 13px; outline: none; transition: border-color .15s;
+  }
+  select:hover, input[type=text]:hover { border-color: rgba(255,255,255,.2); }
+  select:focus, input[type=text]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,92,255,.15); }
+  input[type=text] { width: 250px; }
+  /* 开关 */
+  .switch { position: relative; width: 40px; height: 22px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .sl { position: absolute; inset: 0; border-radius: 999px; background: rgba(255,255,255,.1);
+    border: 1px solid var(--line); transition: .2s; cursor: pointer; }
+  .switch .sl::before { content:""; position: absolute; width: 16px; height: 16px; border-radius: 50%;
+    top: 2px; left: 2px; background: #cfd6e4; transition: .2s; }
+  .switch input:checked + .sl { background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-color: transparent; }
+  .switch input:checked + .sl::before { transform: translateX(18px); background: #fff; }
+  .secure { margin-left: auto; font-size: 11.5px; color: var(--dim); display: flex; align-items: center; gap: 6px; }
+  .secure svg { opacity: .8; }
+
+  /* ---- 列表 ---- */
+  #list { display: flex; flex-direction: column; gap: 11px; }
+  .item {
+    position: relative; display: flex; gap: 14px; align-items: center;
+    padding: 13px 16px 13px 19px; border-radius: 16px;
+    background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(10px);
+    animation: rise .3s ease both; transition: transform .15s, border-color .15s; overflow: hidden;
+  }
+  .item:hover { transform: translateY(-1px); border-color: rgba(255,255,255,.18); }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; } }
+  .item::before { content:""; position: absolute; left: 0; top: 0; bottom: 0; width: 3.5px;
+    background: var(--pc, var(--accent)); opacity: .85; }
+  .thumb { width: 52px; height: 52px; border-radius: 12px; flex: none; position: relative;
+    background: linear-gradient(140deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+    border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
+    overflow: hidden; color: var(--dim); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb .note { opacity: .8; }
+  .meta { flex: 1; min-width: 0; }
+  .row1 { display: flex; align-items: center; gap: 8px; }
+  .fname { font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .plat { flex: none; font-size: 10.5px; padding: 2.5px 9px; border-radius: 999px; font-weight: 600;
+    color: var(--pc, #fff); background: color-mix(in srgb, var(--pc, #7c5cff) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--pc, #7c5cff) 38%, transparent); }
+  .finfo { font-size: 12px; color: var(--dim); margin-top: 4px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; display: flex; gap: 6px; align-items: center; }
+  .finfo .tagline { overflow: hidden; text-overflow: ellipsis; }
+  .err-text { color: var(--err); font-size: 12px; margin-top: 4px; }
+  .bar { height: 4px; margin-top: 8px; border-radius: 99px; background: rgba(255,255,255,.06); overflow: hidden; }
+  .bar > div { height: 100%; border-radius: 99px; width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    background-size: 200% 100%; animation: shine 1.4s linear infinite; transition: width .25s; }
+  @keyframes shine { from { background-position: 0 0; } to { background-position: -200% 0; } }
+
+  .badge { flex: none; display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600;
+    padding: 5px 13px; border-radius: 999px; border: 1px solid var(--line); color: var(--dim); }
+  .badge.run { color: var(--accent2); border-color: rgba(45,212,255,.4); }
+  .badge.ok { color: var(--ok); border-color: rgba(52,211,153,.4); }
+  .badge.fail { color: var(--err); border-color: rgba(251,90,90,.4); }
+  .spin { width: 13px; height: 13px; border-radius: 50%; border: 2px solid rgba(45,212,255,.25);
+    border-top-color: var(--accent2); animation: rot .8s linear infinite; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+  .badge.ok svg, .badge.fail svg { width: 13px; height: 13px; }
+  .badge.ok svg path { stroke: var(--ok); stroke-dasharray: 24; stroke-dashoffset: 24;
+    animation: draw .45s .1s ease forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  .acts { flex: none; display: flex; gap: 8px; align-items: center; }
+  button { border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--text);
+    border-radius: 11px; padding: 8px 16px; font-size: 13px; cursor: pointer; transition: all .15s; }
+  button:hover { border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.09); }
+  button.primary { border: none; color: #fff; font-weight: 600;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    box-shadow: 0 6px 20px -6px rgba(124,92,255,.55); }
+  button.primary:hover { filter: brightness(1.12); box-shadow: 0 8px 26px -6px rgba(124,92,255,.7); }
+  button.ghost { padding: 6px 11px; font-size: 12px; color: var(--dim); }
+  button:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; }
+  a.dl { text-decoration: none; }
+
+  .empty { text-align: center; padding: 46px 0 30px; color: var(--dim); }
+  .empty svg { opacity: .5; margin-bottom: 12px; }
+  .empty p { font-size: 13px; }
+
+  .footer { display: flex; gap: 12px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+  .stats { display: flex; gap: 8px; margin-right: auto; flex-wrap: wrap; }
+  .stats span { font-size: 12px; padding: 5px 13px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--dim); }
+  .stats b { color: var(--text); font-weight: 700; }
+
+  .foot-note { margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--line);
+    color: var(--dim); font-size: 12px; line-height: 2; }
+  .foot-note code { background: rgba(255,255,255,.06); border: 1px solid var(--line);
+    padding: 1px 7px; border-radius: 6px; font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="orb a"></div><div class="orb b"></div><div class="orb c"></div>
+
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M9 18V6l10-2v11" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.5" fill="#fff"/><circle cx="16.5" cy="15" r="2.5" fill="#fff"/></svg>
+    </div>
+    <div class="brand">
+      <h1>Music Unlock</h1>
+      <p>全平台加密音乐解锁 · 本地解密 · 不上传</p>
+    </div>
+    <span id="health">连接中</span>
+  </header>
+
+  <div class="drop" id="drop">
+    <div class="eq"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="t1">把加密音乐<em>拖进来</em>，即刻解锁</div>
+    <div class="t2">支持文件夹拖入 · 批量队列 · 一键打包下载</div>
+    <div class="fmts">
+      <span>.ncm</span><span>.mflac</span><span>.mgg</span><span>.qmc*</span>
+      <span>.tkm</span><span>.kgm</span><span>.kgma</span><span>.vpr</span><span>.kwm</span>
+    </div>
+    <input type="file" id="picker" multiple hidden
+      accept=".ncm,.mflac,.mgg,.mflac0,.mgg0,.mgg1,.mggl,.mmp4,.qmcflac,.qmcogg,.qmc0,.qmc2,.qmc3,.qmc4,.qmc6,.qmc8,.tkm,.bkcmp3,.bkcm4a,.bkcflac,.bkcwav,.bkcape,.bkcogg,.bkcwma,.kgm,.kgma,.vpr,.kwm">
+  </div>
+
+  <div class="settings">
+    <label class="field">输出格式
+      <select id="format">
+        <option value="">保持原样</option>
+        <option value="mp3">MP3</option>
+        <option value="flac">FLAC</option>
+        <option value="m4a">M4A</option>
+        <option value="wav">WAV</option>
+        <option value="ogg">OGG</option>
+      </select>
+    </label>
+    <label class="field">标签与封面
+      <span class="switch"><input type="checkbox" id="embedCover" checked><span class="sl"></span></span>
+    </label>
+    <label class="field">EKey
+      <input type="text" id="ekey" placeholder="无内嵌密钥文件填（可选）">
+    </label>
+    <span class="secure">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      本地处理 · 文件不出设备
+    </span>
+  </div>
+
+  <div id="list"></div>
+  <div class="empty" id="empty">
+    <svg width="64" height="48" viewBox="0 0 64 48" fill="none" stroke="#8a93a6" stroke-width="1.6" stroke-linecap="round">
+      <path d="M4 34v-8c0-10 8-18 28-18s28 8 28 18v8"/><path d="M4 38c0-6 6-10 14-10s14 4 14 10-6 10-14 10-14-4-14-10Z" opacity=".5"/>
+      <circle cx="46" cy="37" r="7"/><path d="M18 22V10M26 22V6M34 22v-6" opacity=".55"/>
+    </svg>
+    <p>还没有文件 —— 拖进来，几秒钟后就能下载标准格式</p>
+  </div>
+
+  <div class="footer" id="footer" style="display:none">
+    <div class="stats" id="stats"></div>
+    <button id="zipAll" class="primary" disabled>⬇ 打包下载全部 (zip)</button>
+    <button id="clear" class="ghost">清空</button>
+  </div>
+
+  <div class="foot-note">
+    支持：网易云 <code>.ncm</code> · QQ音乐 <code>.mflac/.mgg/.qmc*/.tkm</code> · 酷狗 <code>.kgm/.kgma/.vpr</code> · 酷我 <code>.kwm</code><br>
+    统一转码需要本机安装 ffmpeg；新版 QQ 音乐（19.57+）无内嵌密钥的文件在上方填 EKey。<br>
+    命令行版 <code>./run.sh --help</code> · 请仅解密自己合法拥有的文件。
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const list = $('list'), empty = $('empty'), footer = $('footer');
+const state = { items: [], busy: 0, format: '', embedCover: true, ekey: '' };
+
+const PLATFORM = {
+  ncm:      { name: '网易云', c: '#ff6b6b' },
+  mflac:    { name: 'QQ音乐', c: '#31c27c' }, mgg:  { name: 'QQ音乐', c: '#31c27c' },
+  mflac0:   { name: 'QQ音乐', c: '#31c27c' }, mgg0: { name: 'QQ音乐', c: '#31c27c' },
+  mgg1:     { name: 'QQ音乐', c: '#31c27c' }, mggl: { name: 'QQ音乐', c: '#31c27c' },
+  mmp4:     { name: 'QQ音乐', c: '#31c27c' }, qmc0: { name: 'QQ音乐', c: '#31c27c' },
+  qmc2:     { name: 'QQ音乐', c: '#31c27c' }, qmc3: { name: 'QQ音乐', c: '#31c27c' },
+  qmc4:     { name: 'QQ音乐', c: '#31c27c' }, qmc6: { name: 'QQ音乐', c: '#31c27c' },
+  qmc8:     { name: 'QQ音乐', c: '#31c27c' }, qmcflac: { name: 'QQ音乐', c: '#31c27c' },
+  qmcogg:   { name: 'QQ音乐', c: '#31c27c' }, tkm:  { name: 'QQ音乐', c: '#31c27c' },
+  bkcmp3:   { name: 'QQ音乐', c: '#31c27c' }, bkcm4a: { name: 'QQ音乐', c: '#31c27c' },
+  bkcflac:  { name: 'QQ音乐', c: '#31c27c' }, bkcwav: { name: 'QQ音乐', c: '#31c27c' },
+  bkcape:   { name: 'QQ音乐', c: '#31c27c' }, bkcogg: { name: 'QQ音乐', c: '#31c27c' },
+  bkcwma:   { name: 'QQ音乐', c: '#31c27c' },
+  kgm:      { name: '酷狗', c: '#4d9fff' }, kgma: { name: '酷狗', c: '#4d9fff' },
+  vpr:      { name: '酷狗', c: '#4d9fff' },
+  kwm:      { name: '酷我', c: '#ffb020' },
+};
+const EXTS = new Set(Object.keys(PLATFORM));
+function platOf(name) {
+  let ext = name.split('.').pop().toLowerCase();
+  return PLATFORM[ext] || { name: '未知', c: '#7c5cff' };
+}
+
+async function health() {
+  try {
+    const r = await fetch('/api/health');
+    if (r.ok) { $('health').textContent = '服务正常'; $('health').classList.add('on'); }
+  } catch { $('health').textContent = '连接失败'; }
+}
+
+function fmtSize(n) {
+  if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+  if (n >= 1024) return (n / 1024).toFixed(0) + ' KB';
+  return n + ' B';
+}
+
+function addFiles(fileList) {
+  for (const f of fileList) {
+    if (!EXTS.has(f.name.split('.').pop().toLowerCase())) continue;
+    state.items.push({ file: f, status: 'wait', id: null, note: '', tags: {}, cover: null, plat: platOf(f.name) });
+    render();
+  }
+  pump();
+}
+
+async function collectEntry(entry, out) {
+  if (entry.isFile) {
+    const f = await new Promise(res => entry.file(res));
+    out.push(f);
+  } else if (entry.isDirectory) {
+    const reader = entry.createReader();
+    while (true) {
+      const batch = await new Promise(res => reader.readEntries(res));
+      if (!batch.length) break;
+      for (const e of batch) await collectEntry(e, out);
+    }
+  }
+}
+
+const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke-width="3"><path d="M4 12.5 9.5 18 20 6.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const FAIL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke-width="3"><path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/></svg>';
+const NOTE_SVG = '<svg class="note" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18V6l10-2v11" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="15" r="2.5"/></svg>';
+
+function render() {
+  list.innerHTML = '';
+  let ok = 0, fail = 0, wait = 0, run = 0;
+  state.items.forEach((item, idx) => {
+    if (item.status === 'ok') ok++; else if (item.status === 'fail') fail++;
+    else if (item.status === 'run') run++; else wait++;
+
+    const el = document.createElement('div');
+    el.className = 'item';
+    el.style.setProperty('--pc', item.plat.c);
+
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb';
+    thumb.innerHTML = item.cover ? '' : NOTE_SVG;
+    if (item.cover) { const img = document.createElement('img'); img.src = item.cover; thumb.appendChild(img); }
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+
+    const row1 = document.createElement('div');
+    row1.className = 'row1';
+    const fname = document.createElement('div'); fname.className = 'fname'; fname.textContent = item.file.name;
+    const plat = document.createElement('span'); plat.className = 'plat'; plat.textContent = item.plat.name;
+    row1.append(fname, plat);
+    meta.appendChild(row1);
+
+    const finfo = document.createElement('div');
+    finfo.className = 'finfo';
+    const tags = Object.values(item.tags).filter(Boolean).join(' · ');
+    finfo.innerHTML = `<span>${fmtSize(item.file.size)}</span>` +
+      (item.note ? `<span>·</span><span class="tagline">${item.note}${tags ? ' · ' + tags : ''}</span>` : '');
+    meta.appendChild(finfo);
+
+    if (item.status === 'fail' && item.note) {
+      const err = document.createElement('div');
+      err.className = 'err-text';
+      err.textContent = item.note;
+      meta.appendChild(err);
+    }
+    if (item.status === 'run') {
+      const bar = document.createElement('div'); bar.className = 'bar';
+      const fill = document.createElement('div');
+      fill.style.width = (item.progress == null ? 12 : item.progress) + '%';
+      bar.appendChild(fill);
+      meta.appendChild(bar);
+    }
+
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + item.status;
+    if (item.status === 'run') badge.innerHTML = '<span class="spin"></span>' + (item.progress == null ? '解密中' : item.progress + '%');
+    else if (item.status === 'ok') badge.innerHTML = CHECK_SVG + '完成';
+    else if (item.status === 'fail') badge.innerHTML = FAIL_SVG + '失败';
+    else badge.textContent = '排队中';
+
+    const acts = document.createElement('div');
+    acts.className = 'acts';
+    if (item.status === 'ok' && item.id) {
+      const dl = document.createElement('a'); dl.className = 'dl'; dl.href = '/api/download/' + item.id;
+      dl.innerHTML = '<button class="primary">⬇ 下载</button>';
+      acts.appendChild(dl);
+    }
+    const rm = document.createElement('button');
+    rm.className = 'ghost'; rm.textContent = '移除';
+    rm.onclick = () => { state.items.splice(idx, 1); render(); };
+    acts.appendChild(rm);
+
+    el.append(thumb, meta, badge, acts);
+    list.appendChild(el);
+  });
+  empty.style.display = state.items.length ? 'none' : 'block';
+  footer.style.display = state.items.length ? 'flex' : 'none';
+  $('stats').innerHTML =
+    `<span>共 <b>${state.items.length}</b></span>` +
+    `<span>完成 <b style="color:var(--ok)">${ok}</b></span>` +
+    `<span>失败 <b style="color:var(--err)">${fail}</b></span>` +
+    `<span>处理中 <b style="color:var(--accent2)">${run}</b></span>` +
+    `<span>等待 <b>${wait}</b></span>`;
+  $('zipAll').disabled = ok === 0;
+}
+
+function pump() {
+  const CONCURRENCY = 2;
+  while (state.busy < CONCURRENCY) {
+    const item = state.items.find(i => i.status === 'wait');
+    if (!item) break;
+    state.busy++;
+    process(item);
+  }
+}
+
+async function process(item) {
+  item.status = 'run';
+  item.progress = null;
+  render();
+  const fd = new FormData();
+  fd.append('file', item.file);
+  fd.append('format', state.format);
+  fd.append('embed_cover', state.embedCover ? '1' : '0');
+  if (state.ekey) fd.append('ekey', state.ekey);
+
+  try {
+    const xhr = new XMLHttpRequest();
+    const resp = await new Promise((resolve, reject) => {
+      xhr.open('POST', '/api/decode');
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable) { item.progress = Math.round(e.loaded / e.total * 90); render(); }
+      };
+      xhr.onload = () => resolve(JSON.parse(xhr.responseText || '{}'));
+      xhr.onerror = () => reject(new Error('网络错误'));
+      xhr.send(fd);
+    });
+    if (resp.ok) {
+      item.status = 'ok';
+      item.id = resp.result.id;
+      item.note = `${resp.result.container.toUpperCase()} · ${fmtSize(resp.result.size)}`;
+      item.tags = resp.result.tags || {};
+      if (resp.result.has_cover) {
+        const img = await fetch('/api/cover/' + item.id);
+        if (img.ok) item.cover = URL.createObjectURL(await img.blob());
+      }
+    } else {
+      item.status = 'fail';
+      item.note = resp.error || '解码失败';
+    }
+  } catch (e) {
+    item.status = 'fail';
+    item.note = String(e.message || e);
+  }
+  state.busy--;
+  render();
+  pump();
+}
+
+// ---- 事件 ----
+const drop = $('drop');
+drop.onclick = () => $('picker').click();
+$('picker').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
+
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = async e => {
+  e.preventDefault();
+  drop.classList.remove('over');
+  const files = [];
+  const entries = [...(e.dataTransfer.items || [])].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (entries.length) {
+    for (const entry of entries) await collectEntry(entry, files);
+  } else {
+    files.push(...e.dataTransfer.files);
+  }
+  addFiles(files);
+};
+
+$('format').onchange = e => state.format = e.target.value;
+$('embedCover').onchange = e => state.embedCover = e.target.checked;
+$('ekey').oninput = e => state.ekey = e.target.value.trim();
+
+$('zipAll').onclick = () => {
+  const ids = state.items.filter(i => i.status === 'ok' && i.id).map(i => i.id).join(',');
+  if (ids) window.location = '/api/zip?ids=' + ids;
+};
+$('clear').onclick = async () => {
+  await fetch('/api/clear', { method: 'POST' });
+  state.items = [];
+  render();
+};
+
+health();
+</script>
+</body>
+</html>
