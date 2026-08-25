@@ -13,7 +13,7 @@
 
 ## 📹 演示视频
 
-[![音乐格式转换演示](https://github.com/HRuiCcc/music-geshizhuanhuan/releases/download/v0.1.0/demo.gif)](https://github.com/HRuiCcc/music-geshizhuanhuan/releases/download/v0.1.0/ceshi-demo.mp4)
+[![音乐格式转换演示](https://github.com/HRuiCcc/music-geshizhuanhuan/releases/download/v0.1.0/demo.gif?v=2)](https://github.com/HRuiCcc/music-geshizhuanhuan/releases/download/v0.1.0/ceshi-demo.mp4)
 
 > 点击上方动图播放完整视频（mp4），或[直接下载视频文件](https://github.com/HRuiCcc/music-geshizhuanhuan/releases/download/v0.1.0/ceshi-demo.mp4)
 
