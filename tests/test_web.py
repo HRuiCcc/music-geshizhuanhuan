@@ -83,7 +83,7 @@ def get(url: str) -> bytes:
 
 def test_health_and_index(server):
     assert json.loads(get(f"{BASE}/api/health"))["ok"] is True
-    assert b"music-unlock" in get(f"{BASE}/")
+    assert b"music-geshizhuanhuan" in get(f"{BASE}/")
 
 
 def test_all_formats_roundtrip(server):

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# music-unlock 启动器（macOS/Linux）
+# music-geshizhuanhuan 启动器（macOS/Linux）
 # 网页版:  ./run.sh web             -> 浏览器打开 http://127.0.0.1:8686
 # 命令行:  ./run.sh <文件或目录> [-o 输出目录] [--format mp3|flac|m4a|wav|ogg]
 set -euo pipefail

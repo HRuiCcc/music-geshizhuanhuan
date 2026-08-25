@@ -1,4 +1,4 @@
-"""music-unlock —— 全平台加密音乐解锁器。
+"""music-geshizhuanhuan —— 全平台加密音乐格式转换工具。
 
 支持格式：网易云 NCM、QQ 音乐 QMC(v1/v2)、酷狗 KGM(v3/v4)、酷我 KWM。
 全部算法均为公开格式规范的自研实现，仅依赖 pycryptodome(AES) 与 mutagen(标签)，

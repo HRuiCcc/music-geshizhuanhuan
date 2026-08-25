@@ -1,4 +1,4 @@
-"""music-unlock 网页版服务端（仅监听本机 127.0.0.1）。
+"""music-geshizhuanhuan 网页版服务端（仅监听本机 127.0.0.1）。
 
 API:
   GET  /api/health                健康检查
@@ -33,7 +33,7 @@ from music_unlock.transcode import TARGETS  # noqa: E402
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 1024  # 单文件 1GB
 
-STORE_DIR = Path(tempfile.gettempdir()) / "music-unlock-web"
+STORE_DIR = Path(tempfile.gettempdir()) / "music-geshizhuanhuan-web"
 STORE_DIR.mkdir(parents=True, exist_ok=True)
 
 _lock = threading.Lock()
@@ -236,11 +236,11 @@ def clear():
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="music-unlock 网页版")
+    parser = argparse.ArgumentParser(description="music-geshizhuanhuan 网页版")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8686)
     args = parser.parse_args()
-    print(f"music-unlock 网页版已启动: http://{args.host}:{args.port}")
+    print(f"music-geshizhuanhuan 网页版已启动: http://{args.host}:{args.port}")
     print("仅监听本机；文件在你的电脑上本地解密，不会上传到任何服务器。")
     app.run(host=args.host, port=args.port, debug=False, threaded=True)
 

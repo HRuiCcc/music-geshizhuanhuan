@@ -12,7 +12,7 @@ from .formats.base import DecodeOptions
 from .formats.qmc import list_ekeys
 from .transcode import TARGETS
 
-BANNER = """music-unlock —— 全平台加密音乐解锁器
+BANNER = """music-geshizhuanhuan —— 全平台加密音乐格式转换工具
 支持: 网易云 .ncm | QQ音乐 .mflac/.mgg/.qmc*/.tkm | 酷狗 .kgm/.kgma/.vpr | 酷我 .kwm
 """
 
@@ -38,7 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--list-ekey-db", metavar="DB", help="列出密钥库内容后退出（可配合 --find）")
     parser.add_argument("--find", help="与 --list-ekey-db 配合，按名字过滤")
     parser.add_argument("-v", "--verbose", action="store_true", help="详细输出")
-    parser.add_argument("--version", action="version", version=f"music-unlock {__version__}")
+    parser.add_argument("--version", action="version", version=f"music-geshizhuanhuan {__version__}")
     return parser
 
 
