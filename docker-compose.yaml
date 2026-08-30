@@ -1,0 +1,26 @@
+# music-geshizhuanhuan（音乐格式转换）Docker Compose
+# 用法：
+#   docker compose up -d --build
+#   浏览器打开 http://<主机IP>:8686 ，拖文件进去即可（解密/转码全在本地完成）
+#
+# 安全提示：本项目网页版无登录鉴权，容器绑定 0.0.0.0 后同一局域网都可访问。
+#   仅建议在受信任的局域网内使用，不要直接把 8686 端口暴露到公网。
+
+services:
+  music-geshizhuanhuan:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: music-geshizhuanhuan:latest
+    container_name: music-geshizhuanhuan
+    restart: unless-stopped
+    ports:
+      - "8686:8686"
+    # 默认启动网页版（监听所有网卡）。换端口示例：
+    # command: ["python", "web/server.py", "--host", "0.0.0.0", "--port", "9000"]
+    # 命令行批量用法（一次性，跑完自动退出）：
+    #   docker compose run --rm music-geshizhuanhuan \
+    #     python unlocker.py /data/song.ncm -o /data/out --format flac
+    # 给 CLI 模式挂输入输出目录（按需取消注释）：
+    volumes:
+      - ./data:/data
