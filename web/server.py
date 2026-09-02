@@ -239,9 +239,15 @@ def main():
     parser = argparse.ArgumentParser(description="music-geshizhuanhuan 网页版")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8686)
+    parser.add_argument("--no-browser", action="store_true",
+                        help="启动后不自动打开浏览器")
     args = parser.parse_args()
-    print(f"music-geshizhuanhuan 网页版已启动: http://{args.host}:{args.port}")
+    url = f"http://{args.host}:{args.port}"
+    print(f"music-geshizhuanhuan 网页版已启动: {url}")
     print("仅监听本机；文件在你的电脑上本地解密，不会上传到任何服务器。")
+    if not args.no_browser:
+        import webbrowser
+        webbrowser.open(url)
     app.run(host=args.host, port=args.port, debug=False, threaded=True)
 
 

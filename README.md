@@ -65,19 +65,29 @@
 
 ## 🚀 快速开始
 
+### macOS / Linux
+
 ```bash
 git clone git@github.com:HRuiCcc/music-geshizhuanhuan.git
 cd music-geshizhuanhuan
-python3 -m venv .venv
-./.venv/bin/pip install -r requirements.txt
+./run.sh web        # 首次运行自动装依赖，然后自动打开 http://127.0.0.1:8686
+```
+
+### Windows
+
+```powershell
+git clone git@github.com:HRuiCcc/music-geshizhuanhuan.git
+cd music-geshizhuanhuan
+.\run.bat web       # 双击 run.bat 或 PowerShell 运行，自动装依赖并打开浏览器
 ```
 
 ### 网页版（推荐）
 
 ```bash
-./run.sh web
-# 浏览器打开 http://127.0.0.1:8686，拖文件进去即可
+./run.sh web                          # macOS/Linux；Windows: run.bat web
+# 启动后自动打开 http://127.0.0.1:8686，拖文件进去即可
 # 可选: ./run.sh web --port 9000
+# 可选: ./run.sh web --no-browser     # 不自动打开浏览器
 ```
 
 ### 命令行版
@@ -89,7 +99,11 @@ python3 -m venv .venv
 ./run.sh a.ncm -o out --no-embed-cover         # 只解密，不写标签/封面
 ./run.sh 无密钥.mflac --ekey-db player_process_db   # 新版 QQ 音乐 + 密钥库
 ./run.sh a.ncm --dry-run                       # 只列计划不写文件
+# Windows 把 ./run.sh 换成 run.bat，参数完全一致
 ```
+
+> **ffmpeg 说明**：只解密、保持原格式时不需要；统一转码（`--format`）才需要。
+> macOS：`brew install ffmpeg` · Windows：`winget install Gyan.FFmpeg` · Linux：`apt install ffmpeg`
 
 ### 常用参数
 
@@ -138,7 +152,7 @@ flowchart LR
 ```
 music-geshizhuanhuan/
 ├── unlocker.py        # CLI 入口
-├── run.sh             # 启动器（web / 命令行 双模式）
+├── run.sh / run.bat   # 启动器（macOS/Linux: run.sh，Windows: run.bat；web / 命令行 双模式）
 ├── music_unlock/      # 核心引擎（纯 Python，仅标准库+pycryptodome）
 │   ├── ciphers.py     #   TEA / RC4 / QMC v1-v2 流密码 / NCM 密钥流
 │   ├── formats/       #   四个平台解码器 + 注册表自动识别
@@ -179,7 +193,7 @@ A：只解密、保持原格式时不需要；需要统一转码（如 `--format
 A：解密是逐字节还原，flac 等无损格式解密后无损；转码为 flac 也无损（ffmpeg flac 编码）。
 
 **Q：Windows 能用吗？**
-A：能。引擎与网页版均跨平台；命令行把 `./run.sh` 换成 `python unlocker.py` 即可。
+A：能，引擎、网页版、命令行版全平台一致。Windows 直接双击 `run.bat` 或 PowerShell 运行 `.\run.bat web`，首次运行自动装依赖、自动打开浏览器；参数与 `run.sh` 完全相同。
 
 ## 🧱 已知限制
 
