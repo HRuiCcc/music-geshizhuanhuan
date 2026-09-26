@@ -9,7 +9,7 @@ from pathlib import Path
 from .errors import UnlockError
 from .formats import pick_decoder, supported_extensions
 from .formats.base import DecodeOptions
-from .tags import embed
+from .tags import embed, extract
 from .transcode import transcode
 
 
@@ -85,6 +85,8 @@ def process_one(path: Path, opts: BatchOptions) -> FileOutcome:
             return outcome
 
         opts.output_dir.mkdir(parents=True, exist_ok=True)
+        tags = dict(result.tags)
+        cover = result.cover
         with tempfile.NamedTemporaryFile(dir=opts.output_dir, suffix=f".{ext}", delete=False) as tmp:
             tmp_path = Path(tmp.name)
         try:
@@ -93,13 +95,15 @@ def process_one(path: Path, opts: BatchOptions) -> FileOutcome:
                 raw = tmp_path.with_suffix(".raw")
                 raw.write_bytes(result.payload)
                 try:
+                    if opts.embed_cover and not tags and not cover:
+                        tags, cover = extract(result.container, raw)
                     transcode(raw, tmp_path, opts.target, opts.ffmpeg)
                 finally:
                     raw.unlink(missing_ok=True)
             else:
                 tmp_path.write_bytes(result.payload)
-            if opts.embed_cover and (result.tags or result.cover):
-                embed(ext if ext in ("mp3", "flac", "m4a") else result.container, tmp_path, result.tags, result.cover)
+            if opts.embed_cover and (tags or cover):
+                embed(ext if ext in ("mp3", "flac", "m4a") else result.container, tmp_path, tags, cover)
             shutil.move(str(tmp_path), final)
         finally:
             tmp_path.unlink(missing_ok=True)

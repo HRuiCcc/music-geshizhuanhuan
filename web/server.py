@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from music_unlock.batch import process_one, BatchOptions, DecodeOptions  # noqa: E402
 from music_unlock.formats import supported_extensions  # noqa: E402
-from music_unlock.transcode import TARGETS  # noqa: E402
+from music_unlock.transcode import TARGETS, resolve_ffmpeg  # noqa: E402
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 1024  # 单文件 1GB
@@ -64,12 +64,17 @@ def _cleanup_expired(ttl_sec: int = 24 * 3600) -> None:
 
 @app.get("/")
 def index():
-    return send_file(Path(__file__).parent / "static" / "index.html")
+    return send_file(Path(__file__).parent / "static" / "index.html", max_age=0)
 
 
 @app.get("/api/health")
 def health():
-    return jsonify({"ok": True, "formats": sorted(supported_extensions()), "targets": list(TARGETS)})
+    return jsonify({
+        "ok": True,
+        "formats": sorted(supported_extensions()),
+        "targets": list(TARGETS),
+        "ffmpeg": resolve_ffmpeg() is not None,
+    })
 
 
 @app.post("/api/decode")

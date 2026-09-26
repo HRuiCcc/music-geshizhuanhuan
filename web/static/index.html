@@ -308,8 +308,27 @@ function platOf(name) {
 async function health() {
   try {
     const r = await fetch('/api/health');
-    if (r.ok) { $('health').textContent = '服务正常'; $('health').classList.add('on'); }
+    const data = await r.json();
+    if (r.ok && data.ok) { $('health').textContent = '服务正常'; $('health').classList.add('on'); }
+    state.ffmpeg = !!data.ffmpeg;
+    updateFfmpegHint();
   } catch { $('health').textContent = '连接失败'; }
+}
+
+function updateFfmpegHint() {
+  let hint = $('ffmpegHint');
+  if (!hint) {
+    hint = document.createElement('span');
+    hint.id = 'ffmpegHint';
+    hint.style.cssText = 'color:#fb5a5a;font-size:12px';
+    $('format').parentElement.appendChild(hint);
+  }
+  if (state.format && state.ffmpeg === false) {
+    hint.textContent = '未检测到 ffmpeg，无法转码';
+    hint.hidden = false;
+  } else {
+    hint.hidden = true;
+  }
 }
 
 function fmtSize(n) {
@@ -439,9 +458,11 @@ async function process(item) {
   item.status = 'run';
   item.progress = null;
   render();
+  const format = $('format').value;
+  state.format = format;
   const fd = new FormData();
   fd.append('file', item.file);
-  fd.append('format', state.format);
+  fd.append('format', format);
   fd.append('embed_cover', state.embedCover ? '1' : '0');
   if (state.ekey) fd.append('ekey', state.ekey);
 
@@ -456,14 +477,28 @@ async function process(item) {
       xhr.onerror = () => reject(new Error('网络错误'));
       xhr.send(fd);
     });
-    if (resp.ok) {
+    if ($('format').value !== format) {
+      item.status = 'wait';
+      item.id = null;
+      item.note = '';
+      item.tags = {};
+      item.cover = null;
+    } else if (resp.ok) {
       item.status = 'ok';
       item.id = resp.result.id;
       item.note = `${resp.result.container.toUpperCase()} · ${fmtSize(resp.result.size)}`;
       item.tags = resp.result.tags || {};
       if (resp.result.has_cover) {
         const img = await fetch('/api/cover/' + item.id);
-        if (img.ok) item.cover = URL.createObjectURL(await img.blob());
+        if ($('format').value === format && img.ok) item.cover = URL.createObjectURL(await img.blob());
+      }
+      if ($('format').value !== format) {
+        if (item.cover && String(item.cover).startsWith('blob:')) URL.revokeObjectURL(item.cover);
+        item.status = 'wait';
+        item.id = null;
+        item.note = '';
+        item.tags = {};
+        item.cover = null;
       }
     } else {
       item.status = 'fail';
@@ -498,7 +533,26 @@ drop.ondrop = async e => {
   addFiles(files);
 };
 
-$('format').onchange = e => state.format = e.target.value;
+function requeueForFormat() {
+  state.format = $('format').value;
+  updateFfmpegHint();
+  let changed = false;
+  for (const item of state.items) {
+    if (item.status === 'ok' || item.status === 'fail') {
+      if (item.cover && String(item.cover).startsWith('blob:')) URL.revokeObjectURL(item.cover);
+      item.status = 'wait';
+      item.id = null;
+      item.note = '';
+      item.tags = {};
+      item.cover = null;
+      item.progress = null;
+      changed = true;
+    }
+  }
+  if (changed) { render(); pump(); }
+}
+$('format').onchange = requeueForFormat;
+state.format = $('format').value;
 $('embedCover').onchange = e => state.embedCover = e.target.checked;
 $('ekey').oninput = e => state.ekey = e.target.value.trim();
 

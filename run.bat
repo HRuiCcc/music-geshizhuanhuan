@@ -13,9 +13,9 @@ if not exist ".venv\Scripts\python.exe" (
   ".venv\Scripts\pip" install -q -r requirements.txt
 )
 
-if /i "%~1"=="web" (
-  shift
-  ".venv\Scripts\python" web\server.py %*
-) else (
+if /i not "%~1"=="web" (
   ".venv\Scripts\python" unlocker.py %*
+  goto :eof
 )
+shift
+".venv\Scripts\python" web\server.py %*

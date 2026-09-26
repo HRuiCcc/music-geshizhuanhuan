@@ -8,6 +8,55 @@ def _image_mime(cover: bytes) -> str:
     return "image/png" if cover[:4] == b"\x89PNG" else "image/jpeg"
 
 
+def extract(container: str, path: Path) -> tuple[dict[str, str], bytes | None]:
+    """从已解密的音频里读出标签和封面，供转码后重新写入。"""
+    tags: dict[str, str] = {}
+    cover: bytes | None = None
+    try:
+        if container == "mp3":
+            from mutagen.id3 import ID3
+
+            audio = ID3(path)
+            mapping = {"TIT2": "title", "TPE1": "artist", "TALB": "album"}
+            for frame, key in mapping.items():
+                if audio.get(frame):
+                    tags[key] = str(audio[frame])
+            for key in audio.keys():
+                if key.startswith("APIC"):
+                    cover = bytes(audio[key].data)
+                    break
+        elif container == "flac":
+            from mutagen.flac import FLAC
+
+            audio = FLAC(path)
+            for key in ("title", "artist", "album"):
+                if audio.get(key):
+                    tags[key] = str(audio[key][0])
+            if audio.pictures:
+                cover = bytes(audio.pictures[0].data)
+        elif container == "ogg":
+            from mutagen.oggvorbis import OggVorbis
+
+            audio = OggVorbis(path)
+            for key in ("title", "artist", "album"):
+                if audio.get(key):
+                    tags[key] = str(audio[key][0])
+        elif container == "m4a":
+            from mutagen.mp4 import MP4
+
+            audio = MP4(path)
+            mapping = {"\xa9nam": "title", "\xa9ART": "artist", "\xa9alb": "album"}
+            for atom, key in mapping.items():
+                if audio.get(atom):
+                    tags[key] = str(audio[atom][0])
+            covr = audio.get("covr") or []
+            if covr:
+                cover = bytes(covr[0])
+    except Exception:
+        pass
+    return tags, cover
+
+
 def embed(container: str, path: Path, tags: dict[str, str], cover: bytes | None) -> None:
     """按容器类型写入标签与封面；不支持的容器静默跳过。"""
     if not tags and not cover:
